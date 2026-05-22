@@ -16,15 +16,15 @@ const db = await DuckDBClient.of({
 ```
 
 ```js
-const allInstitutions = await db.query(`
+const allInstitutions = (await db.query(`
   SELECT institution_name,
-         SUM(n_researchers) AS n
+         CAST(SUM(n_researchers) AS DOUBLE) AS n
   FROM agg
   WHERE institution_name IS NOT NULL
   GROUP BY institution_name
   HAVING n >= 100
   ORDER BY n DESC
-`);
+`)).toArray();
 ```
 
 ```js
@@ -49,16 +49,16 @@ const minSeniorCell = view(Inputs.range([1, 30], {
 ```
 
 ```js
-const rows = await db.query(`
+const rows = (await db.query(`
   SELECT
     field_of_research,
-    SUM(CASE WHEN publication_age >= ${cutoff} AND gender = 'female'  THEN n_researchers ELSE 0 END) AS n_senior_F,
-    SUM(CASE WHEN publication_age >= ${cutoff} AND gender = 'male'    THEN n_researchers ELSE 0 END) AS n_senior_M,
-    SUM(CASE WHEN publication_age >= ${cutoff} AND gender = 'unknown' THEN n_researchers ELSE 0 END) AS n_senior_U
+    CAST(SUM(CASE WHEN publication_age >= ${cutoff} AND gender = 'female'  THEN n_researchers ELSE 0 END) AS DOUBLE) AS n_senior_F,
+    CAST(SUM(CASE WHEN publication_age >= ${cutoff} AND gender = 'male'    THEN n_researchers ELSE 0 END) AS DOUBLE) AS n_senior_M,
+    CAST(SUM(CASE WHEN publication_age >= ${cutoff} AND gender = 'unknown' THEN n_researchers ELSE 0 END) AS DOUBLE) AS n_senior_U
   FROM agg
   WHERE institution_name = '${institution.replace(/'/g, "''")}'
   GROUP BY field_of_research
-`);
+`)).toArray();
 
 const enriched = rows
   .map(r => {

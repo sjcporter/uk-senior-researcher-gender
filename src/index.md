@@ -37,16 +37,16 @@ const topN = view(Inputs.range([10, 50], {
 ```
 
 ```js
-const institutions = await db.query(`
+const institutions = (await db.query(`
   WITH base AS (
     SELECT
       institution_name,
-      SUM(n_researchers) AS n_total,
-      SUM(CASE WHEN publication_age >= ${cutoff} THEN n_researchers ELSE 0 END) AS n_senior,
-      SUM(CASE WHEN publication_age >= ${cutoff} AND gender = 'female' THEN n_researchers ELSE 0 END) AS n_senior_F,
-      SUM(CASE WHEN publication_age >= ${cutoff} AND gender = 'male'   THEN n_researchers ELSE 0 END) AS n_senior_M,
-      SUM(CASE WHEN gender = 'female' THEN n_researchers ELSE 0 END) AS n_F,
-      SUM(CASE WHEN gender = 'male'   THEN n_researchers ELSE 0 END) AS n_M
+      CAST(SUM(n_researchers) AS DOUBLE) AS n_total,
+      CAST(SUM(CASE WHEN publication_age >= ${cutoff} THEN n_researchers ELSE 0 END) AS DOUBLE) AS n_senior,
+      CAST(SUM(CASE WHEN publication_age >= ${cutoff} AND gender = 'female' THEN n_researchers ELSE 0 END) AS DOUBLE) AS n_senior_F,
+      CAST(SUM(CASE WHEN publication_age >= ${cutoff} AND gender = 'male'   THEN n_researchers ELSE 0 END) AS DOUBLE) AS n_senior_M,
+      CAST(SUM(CASE WHEN gender = 'female' THEN n_researchers ELSE 0 END) AS DOUBLE) AS n_F,
+      CAST(SUM(CASE WHEN gender = 'male'   THEN n_researchers ELSE 0 END) AS DOUBLE) AS n_M
     FROM agg
     WHERE institution_name IS NOT NULL
     GROUP BY institution_name
@@ -58,11 +58,11 @@ const institutions = await db.query(`
   FROM base
   WHERE n_total >= ${minSize}
   ORDER BY pct_senior DESC
-`);
+`)).toArray();
 ```
 
 ```js
-const ukAll = await db.query(`
+const ukAll = (await db.query(`
   SELECT
     SUM(n_researchers) AS n_total,
     SUM(CASE WHEN publication_age >= ${cutoff} THEN n_researchers ELSE 0 END) AS n_senior,
@@ -71,7 +71,7 @@ const ukAll = await db.query(`
     SUM(CASE WHEN gender = 'female' THEN n_researchers ELSE 0 END) AS n_F,
     SUM(CASE WHEN gender = 'male'   THEN n_researchers ELSE 0 END) AS n_M
   FROM agg
-`);
+`)).toArray();
 const uk = ukAll[0];
 const pctSeniorUK = uk.n_senior / uk.n_total;
 const pctWomenSeniorUK = uk.n_senior_F / (uk.n_senior_F + uk.n_senior_M);
