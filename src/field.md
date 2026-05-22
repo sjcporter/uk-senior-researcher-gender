@@ -107,7 +107,7 @@ display(Plot.plot({
   width,
   height: Math.max(360, 22 * top.length),
   marginLeft: 240,
-  x: {label: "Share of senior researchers", percent: true, domain: [0, 1]},
+  x: {label: "Share of senior researchers", percent: true},
   y: {label: null, domain: top.map(r => r.institution_name)},
   color: {
     domain: GENDER_ORDER,
@@ -140,7 +140,7 @@ display(Plot.plot({
 display(Plot.plot({
   width,
   height: 320,
-  x: {label: "% women among seniors", percent: true, domain: [0, 1]},
+  x: {label: "% women among seniors", percent: true},
   y: {label: "Institutions", grid: true},
   marks: [
     Plot.rectY(enriched.filter(r => r.pct_women_resolved != null), Plot.binX({y: "count"}, {x: "pct_women_resolved", fill: "#5b3789", thresholds: 20})),
@@ -162,7 +162,7 @@ display(Plot.plot({
   width,
   height: 480,
   marginLeft: 60,
-  x: {label: "% women among seniors →", percent: true, grid: true, domain: [0, 1]},
+  x: {label: "% women among seniors →", percent: true, grid: true},
   y: {label: "↑ Number of senior women", type: "log", grid: true},
   r: {range: [3, 20]},
   marks: [

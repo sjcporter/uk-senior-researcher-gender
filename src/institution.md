@@ -91,7 +91,7 @@ display(Plot.plot({
   width,
   height: Math.max(360, 28 * enriched.length),
   marginLeft: 220,
-  x: {label: "Share of senior researchers", percent: true, domain: [0, 1]},
+  x: {label: "Share of senior researchers", percent: true},
   y: {label: null, domain: enriched.map(r => r.field_of_research)},
   color: {
     domain: GENDER_ORDER,
