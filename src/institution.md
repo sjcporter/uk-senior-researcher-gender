@@ -99,17 +99,16 @@ display(Plot.plot({
     legend: true
   },
   marks: [
-    Plot.barX(long, Plot.stackX({
+    Plot.barX(long, {
       x: "share",
       y: "field_of_research",
       fill: "gender",
-      order: GENDER_ORDER,
       tip: true,
       channels: {
         Count: d => d.n.toLocaleString(),
         Total: d => d.total.toLocaleString()
       }
-    })),
+    }),
     Plot.text(enriched, {
       x: 0.005, y: "field_of_research",
       text: r => `${(r.pct_women_resolved * 100).toFixed(0)}% women (n=${r.total})`,

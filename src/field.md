@@ -115,17 +115,16 @@ display(Plot.plot({
     legend: true
   },
   marks: [
-    Plot.barX(long, Plot.stackX({
+    Plot.barX(long, {
       x: "share",
       y: "institution_name",
       fill: "gender",
-      order: GENDER_ORDER,
       tip: true,
       channels: {
         Count: d => d.n.toLocaleString(),
         Total: d => d.total.toLocaleString()
       }
-    })),
+    }),
     Plot.text(top, {
       x: 0.005, y: "institution_name",
       text: r => `${(r.pct_women_resolved * 100).toFixed(0)}% women (n=${r.total})`,
@@ -158,19 +157,21 @@ Orange dashed line = UK average for this field (${ukFieldAvg == null ? "—" : `
 The original report's "population percentile" view. Each dot is an institution. X = % women among seniors, Y = absolute number of senior women (log scale). Dots in the top-right are large *and* gender-balanced; large dots far to the left are big institutions where seniors are mostly men.
 
 ```js
+const scatterData = enriched.filter(r => r.pct_women_resolved != null && r.n_senior_F > 0);
 display(Plot.plot({
   width,
   height: 480,
   marginLeft: 60,
   x: {label: "% women among seniors →", percent: true, grid: true, domain: [0, 1]},
   y: {label: "↑ Number of senior women", type: "log", grid: true},
+  r: {range: [3, 20]},
   marks: [
     Plot.ruleX([0.5], {stroke: "grey", strokeDasharray: "2 4"}),
-    ukFieldAvg != null ? Plot.ruleX([ukFieldAvg], {stroke: "orange", strokeDasharray: "4 4"}) : null,
-    Plot.dot(enriched.filter(r => r.pct_women_resolved != null && r.n_senior_F > 0), {
+    ...(ukFieldAvg != null ? [Plot.ruleX([ukFieldAvg], {stroke: "orange", strokeDasharray: "4 4"})] : []),
+    Plot.dot(scatterData, {
       x: "pct_women_resolved",
       y: "n_senior_F",
-      r: d => Math.sqrt(d.total) * 1.5,
+      r: "total",
       fill: GENDER_COLORS.Women,
       fillOpacity: 0.5,
       stroke: "black",
@@ -183,15 +184,15 @@ display(Plot.plot({
       }
     }),
     Plot.text(
-      enriched
-        .filter(r => r.n_senior_F > 0)
+      scatterData
+        .slice()
         .sort((a, b) => b.n_senior_F - a.n_senior_F)
         .slice(0, 6),
       {
         x: "pct_women_resolved",
         y: "n_senior_F",
         text: d => d.institution_name.slice(0, 30),
-        dy: -8, fontSize: 11
+        dy: -10, fontSize: 11
       }
     )
   ]
