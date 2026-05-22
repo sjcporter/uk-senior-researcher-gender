@@ -5,10 +5,11 @@ toc: false
 
 # Seniors by field of research, at a single institution
 
-For the selected institution, the chart below shows the gender split of the **senior cohort** (publication history ≥ ${cutoff} years) in each field of research. The orange portion of each bar is female, green is unknown (initials-only or unmatched names), blue is male.
+For the selected institution, the chart below shows the gender split of the **senior cohort** (publication history ≥ ${cutoff} years) in each field of research. The orange portion of each bar is women, green is unknown (initials-only or unmatched names), blue is men.
 
 ```js
 import {DuckDBClient} from "npm:@observablehq/duckdb";
+import {rows, GENDER_LABEL, GENDER_ORDER, GENDER_COLORS} from "./components/duck.js";
 
 const db = await DuckDBClient.of({
   agg: FileAttachment("data/uk_senior_gender_agg.parquet")
@@ -16,7 +17,7 @@ const db = await DuckDBClient.of({
 ```
 
 ```js
-const allInstitutions = (await db.query(`
+const allInstitutions = rows(await db.query(`
   SELECT institution_name,
          CAST(SUM(n_researchers) AS DOUBLE) AS n
   FROM agg
@@ -24,7 +25,7 @@ const allInstitutions = (await db.query(`
   GROUP BY institution_name
   HAVING n >= 100
   ORDER BY n DESC
-`)).toArray();
+`));
 ```
 
 ```js
@@ -49,7 +50,7 @@ const minSeniorCell = view(Inputs.range([1, 30], {
 ```
 
 ```js
-const rows = (await db.query(`
+const raw = rows(await db.query(`
   SELECT
     field_of_research,
     CAST(SUM(CASE WHEN publication_age >= ${cutoff} AND gender = 'female'  THEN n_researchers ELSE 0 END) AS DOUBLE) AS n_senior_F,
@@ -58,9 +59,9 @@ const rows = (await db.query(`
   FROM agg
   WHERE institution_name = '${institution.replace(/'/g, "''")}'
   GROUP BY field_of_research
-`)).toArray();
+`));
 
-const enriched = rows
+const enriched = raw
   .map(r => {
     const total = r.n_senior_F + r.n_senior_M + r.n_senior_U;
     return {
@@ -77,11 +78,11 @@ const enriched = rows
 ```
 
 ```js
-// reshape to long format for stacked bars
+// reshape to long format for stacked bars; use human-facing gender labels
 const long = enriched.flatMap(r => [
-  {field_of_research: r.field_of_research, gender: "female",  share: r.pct_F, n: r.n_senior_F, total: r.total},
-  {field_of_research: r.field_of_research, gender: "unknown", share: r.pct_U, n: r.n_senior_U, total: r.total},
-  {field_of_research: r.field_of_research, gender: "male",    share: r.pct_M, n: r.n_senior_M, total: r.total}
+  {field_of_research: r.field_of_research, gender: GENDER_LABEL.female,  share: r.pct_F, n: r.n_senior_F, total: r.total},
+  {field_of_research: r.field_of_research, gender: GENDER_LABEL.unknown, share: r.pct_U, n: r.n_senior_U, total: r.total},
+  {field_of_research: r.field_of_research, gender: GENDER_LABEL.male,    share: r.pct_M, n: r.n_senior_M, total: r.total}
 ]);
 ```
 
@@ -93,23 +94,25 @@ display(Plot.plot({
   x: {label: "Share of senior researchers", percent: true, domain: [0, 1]},
   y: {label: null, domain: enriched.map(r => r.field_of_research)},
   color: {
-    domain: ["female", "unknown", "male"],
-    range: ["#F58220", "#7FB539", "#1F77B4"],
+    domain: GENDER_ORDER,
+    range: GENDER_ORDER.map(g => GENDER_COLORS[g]),
     legend: true
   },
   marks: [
-    Plot.barX(long, {
-      x: "share", y: "field_of_research", fill: "gender",
+    Plot.barX(long, Plot.stackX({
+      x: "share",
+      y: "field_of_research",
+      fill: "gender",
+      order: GENDER_ORDER,
       tip: true,
       channels: {
         Count: d => d.n.toLocaleString(),
         Total: d => d.total.toLocaleString()
-      },
-      order: ["female", "unknown", "male"]
-    }),
+      }
+    })),
     Plot.text(enriched, {
       x: 0.005, y: "field_of_research",
-      text: r => `${(r.pct_women_resolved * 100).toFixed(0)}% F (n=${r.total})`,
+      text: r => `${(r.pct_women_resolved * 100).toFixed(0)}% women (n=${r.total})`,
       fill: "white", textAnchor: "start", fontSize: 11
     })
   ]
@@ -124,10 +127,10 @@ display(Inputs.table(enriched, {
   header: {
     field_of_research: "Field of research",
     total: "Seniors total",
-    n_senior_F: "F",
-    n_senior_M: "M",
+    n_senior_F: "Women",
+    n_senior_M: "Men",
     n_senior_U: "Unknown",
-    pct_women_resolved: "% women (resolved)"
+    pct_women_resolved: "% women (of resolved)"
   },
   format: {
     pct_women_resolved: x => x == null ? "—" : `${(x * 100).toFixed(1)}%`

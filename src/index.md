@@ -9,6 +9,7 @@ Where is the UK research workforce most concentrated in senior researchers, and 
 
 ```js
 import {DuckDBClient} from "npm:@observablehq/duckdb";
+import {rows} from "./components/duck.js";
 
 const db = await DuckDBClient.of({
   agg: FileAttachment("data/uk_senior_gender_agg.parquet")
@@ -37,7 +38,7 @@ const topN = view(Inputs.range([10, 50], {
 ```
 
 ```js
-const institutions = (await db.query(`
+const institutions = rows(await db.query(`
   WITH base AS (
     SELECT
       institution_name,
@@ -52,27 +53,27 @@ const institutions = (await db.query(`
     GROUP BY institution_name
   )
   SELECT *,
-    n_senior * 1.0 / NULLIF(n_total, 0)                      AS pct_senior,
-    n_senior_F * 1.0 / NULLIF(n_senior_F + n_senior_M, 0)    AS pct_women_among_seniors,
-    n_F        * 1.0 / NULLIF(n_F        + n_M,        0)    AS pct_women_overall
+    n_senior / NULLIF(n_total, 0)                      AS pct_senior,
+    n_senior_F / NULLIF(n_senior_F + n_senior_M, 0)    AS pct_women_among_seniors,
+    n_F        / NULLIF(n_F        + n_M,        0)    AS pct_women_overall
   FROM base
   WHERE n_total >= ${minSize}
   ORDER BY pct_senior DESC
-`)).toArray();
+`));
 ```
 
 ```js
-const ukAll = (await db.query(`
+const ukRows = rows(await db.query(`
   SELECT
-    SUM(n_researchers) AS n_total,
-    SUM(CASE WHEN publication_age >= ${cutoff} THEN n_researchers ELSE 0 END) AS n_senior,
-    SUM(CASE WHEN publication_age >= ${cutoff} AND gender = 'female' THEN n_researchers ELSE 0 END) AS n_senior_F,
-    SUM(CASE WHEN publication_age >= ${cutoff} AND gender = 'male'   THEN n_researchers ELSE 0 END) AS n_senior_M,
-    SUM(CASE WHEN gender = 'female' THEN n_researchers ELSE 0 END) AS n_F,
-    SUM(CASE WHEN gender = 'male'   THEN n_researchers ELSE 0 END) AS n_M
+    CAST(SUM(n_researchers) AS DOUBLE) AS n_total,
+    CAST(SUM(CASE WHEN publication_age >= ${cutoff} THEN n_researchers ELSE 0 END) AS DOUBLE) AS n_senior,
+    CAST(SUM(CASE WHEN publication_age >= ${cutoff} AND gender = 'female' THEN n_researchers ELSE 0 END) AS DOUBLE) AS n_senior_F,
+    CAST(SUM(CASE WHEN publication_age >= ${cutoff} AND gender = 'male'   THEN n_researchers ELSE 0 END) AS DOUBLE) AS n_senior_M,
+    CAST(SUM(CASE WHEN gender = 'female' THEN n_researchers ELSE 0 END) AS DOUBLE) AS n_F,
+    CAST(SUM(CASE WHEN gender = 'male'   THEN n_researchers ELSE 0 END) AS DOUBLE) AS n_M
   FROM agg
-`)).toArray();
-const uk = ukAll[0];
+`));
+const uk = ukRows[0];
 const pctSeniorUK = uk.n_senior / uk.n_total;
 const pctWomenSeniorUK = uk.n_senior_F / (uk.n_senior_F + uk.n_senior_M);
 const pctWomenOverallUK = uk.n_F / (uk.n_F + uk.n_M);
@@ -104,7 +105,7 @@ const pctWomenOverallUK = uk.n_F / (uk.n_F + uk.n_M);
 
 ## Institutions over-indexed on senior researchers
 
-The chart below ranks UK institutions by the share of their researchers who are senior (publication history ≥ ${cutoff} years). The orange line is the UK-wide average — bars to the right of it are over-indexed on seniors, bars to the left under-indexed. Only institutions with at least **${minSize.toLocaleString()}** total UK researchers are shown. Bar colour shows whether the senior cohort at that institution skews more or less female than the UK senior baseline of ${(pctWomenSeniorUK * 100).toFixed(0)}%.
+The chart below ranks UK institutions by the share of their researchers who are senior (publication history ≥ ${cutoff} years). The orange line is the UK-wide average — bars to the right of it are over-indexed on seniors, bars to the left under-indexed. Only institutions with at least **${minSize.toLocaleString()}** total UK researchers are shown. Bar colour shows whether the senior cohort at that institution has a higher or lower share of women than the UK senior baseline of ${(pctWomenSeniorUK * 100).toFixed(0)}%.
 
 ```js
 const top = institutions.slice(0, topN);
@@ -136,7 +137,7 @@ display(Plot.plot({
       }
     }),
     Plot.ruleX([pctSeniorUK], {stroke: "orange", strokeWidth: 2, strokeDasharray: "4 4"}),
-    Plot.text([{x: pctSeniorUK, y: top[0].institution_name}], {
+    Plot.text([{x: pctSeniorUK, y: top[0]?.institution_name}], {
       x: "x", y: "y",
       text: () => `UK avg = ${(pctSeniorUK * 100).toFixed(1)}%`,
       fill: "orange", fontWeight: "bold", dx: 8, frameAnchor: "right"
@@ -147,7 +148,7 @@ display(Plot.plot({
 
 ## Seniority concentration vs senior gender balance
 
-Two axes plotted together: x = how senior-skewed the institution is, y = how gender-balanced its senior cohort is. The **bottom-right** quadrant (over-indexed on seniors *and* under-indexed on women) is where attention is usually warranted — typically older, male-dominated workforces. Dot size = total UK researchers.
+Two axes plotted together: x = how senior-skewed the institution is, y = how gender-balanced its senior cohort is. The **bottom-right** quadrant (over-indexed on seniors *and* under-indexed on women) is where attention is usually warranted — typically older workforces that are predominantly men. Dot size = total UK researchers.
 
 ```js
 display(Plot.plot({
@@ -203,8 +204,8 @@ display(Inputs.table(institutions, {
     n_total: "Total",
     n_senior: "Senior",
     pct_senior: "% senior",
-    pct_women_among_seniors: "% F (seniors)",
-    pct_women_overall: "% F (all)"
+    pct_women_among_seniors: "% women (seniors)",
+    pct_women_overall: "% women (all)"
   },
   format: {
     n_total: x => x.toLocaleString(),

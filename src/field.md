@@ -9,6 +9,7 @@ Pick a field of research; the views below rank UK institutions by the share of w
 
 ```js
 import {DuckDBClient} from "npm:@observablehq/duckdb";
+import {rows, GENDER_LABEL, GENDER_ORDER, GENDER_COLORS} from "./components/duck.js";
 
 const db = await DuckDBClient.of({
   agg: FileAttachment("data/uk_senior_gender_agg.parquet")
@@ -16,12 +17,12 @@ const db = await DuckDBClient.of({
 ```
 
 ```js
-const allFors = (await db.query(`
+const allFors = rows(await db.query(`
   SELECT DISTINCT field_of_research
   FROM agg
   WHERE field_of_research IS NOT NULL
   ORDER BY field_of_research
-`)).toArray();
+`));
 ```
 
 ```js
@@ -46,7 +47,7 @@ const minSenior = view(Inputs.range([1, 30], {
 ```
 
 ```js
-const rowsForField = (await db.query(`
+const raw = rows(await db.query(`
   SELECT
     institution_name,
     CAST(SUM(CASE WHEN publication_age >= ${cutoff} AND gender = 'female'  THEN n_researchers ELSE 0 END) AS DOUBLE) AS n_senior_F,
@@ -57,9 +58,9 @@ const rowsForField = (await db.query(`
   WHERE field_of_research = '${fieldOfResearch.replace(/'/g, "''")}'
     AND institution_name IS NOT NULL
   GROUP BY institution_name
-`)).toArray();
+`));
 
-const enriched = rowsForField
+const enriched = raw
   .map(r => {
     const total = r.n_senior_F + r.n_senior_M + r.n_senior_U;
     return {
@@ -97,9 +98,9 @@ const top = enriched
   .slice(0, topN);
 
 const long = top.flatMap(r => [
-  {institution_name: r.institution_name, gender: "female",  share: r.pct_F, n: r.n_senior_F, total: r.total},
-  {institution_name: r.institution_name, gender: "unknown", share: r.pct_U, n: r.n_senior_U, total: r.total},
-  {institution_name: r.institution_name, gender: "male",    share: r.pct_M, n: r.n_senior_M, total: r.total}
+  {institution_name: r.institution_name, gender: GENDER_LABEL.female,  share: r.pct_F, n: r.n_senior_F, total: r.total},
+  {institution_name: r.institution_name, gender: GENDER_LABEL.unknown, share: r.pct_U, n: r.n_senior_U, total: r.total},
+  {institution_name: r.institution_name, gender: GENDER_LABEL.male,    share: r.pct_M, n: r.n_senior_M, total: r.total}
 ]);
 
 display(Plot.plot({
@@ -109,23 +110,25 @@ display(Plot.plot({
   x: {label: "Share of senior researchers", percent: true, domain: [0, 1]},
   y: {label: null, domain: top.map(r => r.institution_name)},
   color: {
-    domain: ["female", "unknown", "male"],
-    range: ["#F58220", "#7FB539", "#1F77B4"],
+    domain: GENDER_ORDER,
+    range: GENDER_ORDER.map(g => GENDER_COLORS[g]),
     legend: true
   },
   marks: [
-    Plot.barX(long, {
-      x: "share", y: "institution_name", fill: "gender",
+    Plot.barX(long, Plot.stackX({
+      x: "share",
+      y: "institution_name",
+      fill: "gender",
+      order: GENDER_ORDER,
       tip: true,
       channels: {
         Count: d => d.n.toLocaleString(),
         Total: d => d.total.toLocaleString()
-      },
-      order: ["female", "unknown", "male"]
-    }),
+      }
+    })),
     Plot.text(top, {
       x: 0.005, y: "institution_name",
-      text: r => `${(r.pct_women_resolved * 100).toFixed(0)}% F (n=${r.total})`,
+      text: r => `${(r.pct_women_resolved * 100).toFixed(0)}% women (n=${r.total})`,
       fill: "white", textAnchor: "start", fontSize: 11
     })
   ]
@@ -152,7 +155,7 @@ Orange dashed line = UK average for this field (${ukFieldAvg == null ? "—" : `
 
 ## Scatter: count vs share
 
-The original report's "population percentile" view. Each dot is an institution. X = % women among seniors, Y = absolute number of senior women (log scale). Dots in the top-right are large *and* gender-balanced; large dots far to the left are big institutions where seniors are mostly male.
+The original report's "population percentile" view. Each dot is an institution. X = % women among seniors, Y = absolute number of senior women (log scale). Dots in the top-right are large *and* gender-balanced; large dots far to the left are big institutions where seniors are mostly men.
 
 ```js
 display(Plot.plot({
@@ -168,7 +171,7 @@ display(Plot.plot({
       x: "pct_women_resolved",
       y: "n_senior_F",
       r: d => Math.sqrt(d.total) * 1.5,
-      fill: "#F58220",
+      fill: GENDER_COLORS.Women,
       fillOpacity: 0.5,
       stroke: "black",
       strokeOpacity: 0.4,
@@ -205,10 +208,10 @@ display(Inputs.table(
     header: {
       institution_name: "Institution",
       total: "Seniors",
-      n_senior_F: "F",
-      n_senior_M: "M",
+      n_senior_F: "Women",
+      n_senior_M: "Men",
       n_senior_U: "Unknown",
-      pct_women_resolved: "% women (resolved)"
+      pct_women_resolved: "% women (of resolved)"
     },
     format: {
       pct_women_resolved: x => x == null ? "—" : `${(x * 100).toFixed(1)}%`
