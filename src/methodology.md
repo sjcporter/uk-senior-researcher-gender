@@ -39,11 +39,7 @@ When comparing institutions or fields, look at the **unknown** share alongside t
 
 ## Why this matters for seniority
 
-Representation of women among **senior** researchers is consistently lower than among the workforce as a whole. At a typical 20-year cutoff, UK seniors are ~37% women versus ~46% across all UK researchers.
-
-This gap should not be read as a "leaky pipeline" — i.e. as evidence that women are dropping out. It is a snapshot of a cohort: today's seniors started their careers 20–40 years ago, when the gender mix of new researchers entering the field was very different from today's. The senior cohort reflects the historical intake, not the current one. As more recent cohorts age into seniority, the senior split will track whatever the recruitment split was a generation earlier.
-
-This site exists to make that compositional difference visible at the institution and field level — so that institutions disproportionately concentrated in senior researchers, and whose senior cohort is disproportionately men, can be identified and the underlying drivers (whether historical recruitment, retention, or current hiring practice) investigated.
+*To be completed.*
 
 ## Reproducibility
 
